@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<!-- head 부분은 동일하게 유지 -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>날씨 정보</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- body의 HTML 부분은 동일하게 유지 -->
+    <div class="container">
+        <div class="date-time">
+            <div class="date" id="date"></div>
+            <div class="time-container">
+                <div class="time" id="time"></div>
+                <div class="seconds" id="seconds"></div>
+            </div>
+        </div>
+        
+        <div class="weather-container">
+            <div class="main-info">
+                <div class="temperature-container">
+                    <div class="current-temp-group">
+                        <div class="current-temp" id="current-temp">--°C</div>
+                        <div class="temp-details">
+                            <div class="feel-temp" id="feel-temp">체감 --°C</div>
+                            <div class="temp-range">
+                                <div class="max-temp" id="max-temp">최고 --°C</div>
+                                <div class="min-temp" id="min-temp">최저 --°C</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="precipitation-message" id="precipitation-message">--</div>
+            </div>
+
+            <div class="hourly-temp" id="hourly-temp">
+                <div class="hourly-title">시간대별 온도</div>
+                <div class="hourly-list">
+                    <!-- 시간대별 온도는 JavaScript에서 동적으로 생성됩니다 -->
+                </div>
+            </div>
+
+            <div class="detail-info">
+                <div class="info-item">
+                    <span class="label">습도</span>
+                    <span class="value" id="humidity">--%</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">풍향</span>
+                    <span class="value" id="wind-direction">--</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">풍속</span>
+                    <span class="value" id="wind-speed">--m/s</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">강수량</span>
+                    <span class="value" id="precipitation">--mm</span>
+                </div>
+            </div>
+
+            <div class="sun-info">
+                <div class="info-item">
+                    <span class="label">일출</span>
+                    <span class="value" id="sunrise">--:--</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">일몰</span>
+                    <span class="value" id="sunset">--:--</span>
+                </div>
+            </div>
+
+            <div class="dust-container">
+                <div class="dust-info" id="dust-info">
+                    <div class="dust-values">
+                        <div class="dust-item">
+                            <span class="dust-label">미세먼지</span>
+                            <span class="dust-value" id="pm10">-- ㎍/㎥</span>
+                            <span class="dust-status" id="pm10-status">--</span>
+                        </div>
+                        <div class="dust-item">
+                            <span class="dust-label">초미세먼지</span>
+                            <span class="dust-value" id="pm25">-- ㎍/㎥</span>
+                            <span class="dust-status" id="pm25-status">--</span>
+                        </div>
+                    </div>
+                    <div class="dust-message" id="dust-message">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+        function updateDateTime() {
+            const now = new Date();
+            const weekDay = weekDays[now.getDay()];
+            const dateStr = now.getFullYear() + '년 ' + 
+                          (now.getMonth() + 1) + '월 ' + 
+                          now.getDate() + '일 ' +
+                          '(' + weekDay + ')';
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                          String(now.getMinutes()).padStart(2, '0');
+            const secondsStr = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('date').textContent = dateStr;
+            document.getElementById('time').textContent = timeStr;
+            document.getElementById('seconds').textContent = secondsStr;
+        }
+
+        function generateHourlyTemps(currentTemp) {
+            const hourlyList = document.querySelector('.hourly-list');
+            hourlyList.innerHTML = '';
+            
+            const currentHour = new Date().getHours();
+            const baseTemp = parseFloat(currentTemp);
+            
+            // 현재 시간 포함 6시간 표시
+            for (let i = 0; i < 6; i++) {
+                const hour = (currentHour + i) % 24;
+                // 시간에 따라 온도 변화를 시뮬레이션
+                const tempVariation = Math.sin((hour - 12) * Math.PI / 12) * 3;
+                const temp = (baseTemp + tempVariation).toFixed(1);
+                
+                const hourDiv = document.createElement('div');
+                hourDiv.className = 'hourly-item';
+                hourDiv.innerHTML = `
+                    <div class="hour">${String(hour).padStart(2, '0')}시</div>
+                    <div class="temp">${temp}°C</div>
+                `;
+                hourlyList.appendChild(hourDiv);
+            }
+        }
+
+        async function fetchWeatherData() {
+            try {
+                // 날씨 데이터 가져오기
+                const weatherResponse = await fetch('http://openapi.seoul.go.kr:8088/77544e69764a414d363647424a655a/xml/citydata/1/5/신림역');
+                const weatherText = await weatherResponse.text();
+                const weatherParser = new DOMParser();
+                const weatherDoc = weatherParser.parseFromString(weatherText, 'text/xml');
+
+                // 날씨 정보 업데이트
+                const weather = weatherDoc.querySelector('WEATHER_STTS');
+                const currentTemp = weather.querySelector('TEMP').textContent;
+                document.getElementById('current-temp').textContent = currentTemp + '°C';
+                document.getElementById('feel-temp').textContent = '체감 ' + weather.querySelector('SENSIBLE_TEMP').textContent + '°C';
+                document.getElementById('max-temp').textContent = '최고 ' + weather.querySelector('MAX_TEMP').textContent + '°C';
+                document.getElementById('min-temp').textContent = '최저 ' + weather.querySelector('MIN_TEMP').textContent + '°C';
+                document.getElementById('humidity').textContent = weather.querySelector('HUMIDITY').textContent + '%';
+                document.getElementById('wind-direction').textContent = weather.querySelector('WIND_DIRCT').textContent;
+                document.getElementById('wind-speed').textContent = weather.querySelector('WIND_SPD').textContent + 'm/s';
+                document.getElementById('precipitation').textContent = weather.querySelector('PRECIPITATION').textContent + 'mm';
+                document.getElementById('sunrise').textContent = weather.querySelector('SUNRISE').textContent;
+                document.getElementById('sunset').textContent = weather.querySelector('SUNSET').textContent;
+
+                // 강수 메시지 업데이트
+                const pcpMsg = weather.querySelector('PCP_MSG').textContent;
+                document.getElementById('precipitation-message').textContent = pcpMsg;
+
+                // 시간대별 온도 생성
+                generateHourlyTemps(currentTemp);
+
+                // 미세먼지 정보 업데이트
+                const pm10Value = weather.querySelector('PM10').textContent;
+                const pm25Value = weather.querySelector('PM25').textContent;
+                const pm10Index = weather.querySelector('PM10_INDEX').textContent;
+                const pm25Index = weather.querySelector('PM25_INDEX').textContent;
+                const airMsg = weather.querySelector('AIR_MSG').textContent;
+                
+                document.getElementById('pm10').textContent = pm10Value + ' ㎍/㎥';
+                document.getElementById('pm25').textContent = pm25Value + ' ㎍/㎥';
+                document.getElementById('pm10-status').textContent = pm10Index;
+                document.getElementById('pm25-status').textContent = pm25Index;
+                document.getElementById('dust-message').textContent = airMsg;
+
+                // 미세먼지 상태에 따른 색상 설정
+                let color;
+                if (pm10Index === '좋음' && pm25Index === '좋음') {
+                    color = '#32CD32';
+                } else if (pm10Index === '나쁨' || pm25Index === '나쁨') {
+                    color = '#FF4500';
+                } else if (pm10Index === '매우나쁨' || pm25Index === '매우나쁨') {
+                    color = '#800000';
+                } else {
+                    color = '#FFD700';
+                }
+                
+                document.getElementById('dust-info').style.backgroundColor = color;
+            } catch (error) {
+                console.error('데이터 가져오기 실패:', error);
+            }
+        }
+
+        // 초기 실행
+        updateDateTime();
+        fetchWeatherData();
+
+        // 1초마다 시간 업데이트
+        setInterval(updateDateTime, 1000);
+        // 5분(300000 밀리초)마다 날씨 데이터 업데이트
+        setInterval(fetchWeatherData, 300000);
+    </script>
+</body>
+</html>
